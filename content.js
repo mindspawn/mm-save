@@ -50,6 +50,8 @@ async function runCapture() {
     }
   }
 
+  await backfillUserIds(posts);
+
   posts.sort((a, b) => {
     const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -90,6 +92,7 @@ function extractPost(node) {
   const postId = normalizePostId(rawId);
 
   const userId = resolveUserId(node, dataset);
+  const username = resolveUsername(node, dataset);
 
   const timestamp = resolveTimestamp(node, dataset);
 
@@ -122,6 +125,7 @@ function extractPost(node) {
     threadId: rootId || postId || null,
     timestamp,
     userId,
+    username,
     message
   };
 }
@@ -183,6 +187,38 @@ function resolveUserId(node, dataset) {
   return null;
 }
 
+function resolveUsername(node, dataset) {
+  const direct = dataset.username || dataset.userName || node.getAttribute("data-username");
+  if (direct) {
+    return direct.trim();
+  }
+
+  const profile = node.querySelector("[data-username]");
+  if (profile?.getAttribute) {
+    const value = profile.getAttribute("data-username");
+    if (value) {
+      return value.trim();
+    }
+  }
+
+  const userPopover = node.querySelector(".user-popover, [data-testid='post_username'], [data-testid='post-profile-popover']");
+  if (userPopover?.getAttribute) {
+    const attrName = userPopover.getAttribute("data-username");
+    if (attrName) {
+      return attrName.trim();
+    }
+  }
+
+  const textCandidate =
+    node.querySelector("[data-testid='postProfilePicture'] + div .user-popover") ||
+    node.querySelector("[data-testid='postProfilePicture'] + div [data-testid='post_username']");
+  if (textCandidate?.textContent) {
+    return textCandidate.textContent.trim().replace(/^@/, "");
+  }
+
+  return null;
+}
+
 function resolveTimestamp(node, dataset) {
   const candidateFields = [
     dataset.createAt,
@@ -214,6 +250,56 @@ function resolveTimestamp(node, dataset) {
   }
 
   return null;
+}
+
+async function backfillUserIds(posts) {
+  const needsLookup = posts.filter((post) => !post.userId && post.username);
+  if (!needsLookup.length) {
+    return;
+  }
+
+  const usernameSet = new Set(needsLookup.map((post) => post.username));
+  const usernames = Array.from(usernameSet).filter(Boolean);
+  if (!usernames.length) {
+    return;
+  }
+
+  const batched = [];
+  const batchSize = 50;
+  for (let i = 0; i < usernames.length; i += batchSize) {
+    batched.push(usernames.slice(i, i + batchSize));
+  }
+
+  const userMap = new Map();
+  await Promise.all(
+    batched.map(async (batch) => {
+      try {
+        const response = await fetch(`${window.location.origin}/api/v4/users/usernames`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(batch)
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        data.forEach((user) => {
+          if (user?.username && user?.id) {
+            userMap.set(user.username, user.id);
+          }
+        });
+      } catch (error) {
+        console.warn("Mattermost saver: failed to look up usernames", error);
+      }
+    })
+  );
+
+  needsLookup.forEach((post) => {
+    if (!post.userId && post.username && userMap.has(post.username)) {
+      post.userId = userMap.get(post.username);
+    }
+  });
 }
 
 function findScrollableContainer() {

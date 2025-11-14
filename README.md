@@ -22,6 +22,7 @@ The resulting file includes:
 - `posts`, sorted oldest → newest, each containing:
   - `timestamp` (ISO)
   - `userId` (as exposed in the DOM)
+  - `username` (and used to backfill `userId` via the authenticated API if needed)
   - `message` (visible text)
   - `threadId` (root ID so replies can be regrouped)
   - `postId` (local identifier for convenience)
