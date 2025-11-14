@@ -22,10 +22,7 @@
 })();
 
 async function runCapture() {
-  const scrollable = findScrollableContainer();
-  if (!scrollable) {
-    throw new Error("Could not find the Mattermost message list. Open a channel before running the extension.");
-  }
+  const scrollable = await waitForScrollableContainer();
 
   const seen = new Set();
   const posts = [];
@@ -177,13 +174,16 @@ function resolveTimestamp(node, dataset) {
 function findScrollableContainer() {
   const selectors = [
     "[data-testid='virtualizedPostListContent']",
+    "[data-testid='postListContent']",
     "[data-testid='postView']",
     "#post-list",
     ".post-list__dynamic",
     ".post-list__content",
     ".post-list__table",
     ".post-list__body",
+    "[class*='PostListContent']",
     "[role='feed']",
+    "[role='list']",
     "[aria-label='message list']"
   ];
 
@@ -192,6 +192,11 @@ function findScrollableContainer() {
     if (isScrollable(el)) {
       return el;
     }
+  }
+
+  const centerPane = document.querySelector("[data-testid='channelView']") || document.querySelector("[class*='CenterPane']");
+  if (centerPane && isScrollable(centerPane)) {
+    return centerPane;
   }
 
   const firstPost = document.querySelector("[id^='post_']");
@@ -217,6 +222,19 @@ function isScrollable(element) {
     return false;
   }
   return element.scrollHeight - element.clientHeight > 20;
+}
+
+async function waitForScrollableContainer(timeoutMs = 8000) {
+  const start = performance.now();
+  const pollInterval = 200;
+  while (performance.now() - start < timeoutMs) {
+    const scrollable = findScrollableContainer();
+    if (scrollable) {
+      return scrollable;
+    }
+    await waitFor(pollInterval);
+  }
+  throw new Error("Could not find the Mattermost message list. Focus the center channel and try again.");
 }
 
 function getChannelName() {

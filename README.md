@@ -26,4 +26,6 @@ The resulting file includes:
   - `threadId` (root ID so replies can be regrouped)
   - `postId` (local identifier for convenience)
 
-> **Tip:** If the extension reports it cannot find the message list, switch to the center channel pane and try again. Some custom themes move the scroll container; in that case scroll a little manually, then re-trigger the extension so it can detect the active feed.
+> **Tips:**
+> - The extension waits a few seconds for the channel list to appear; make sure the center pane is focused before clicking the action button.
+> - If it still reports it cannot find the message list, scroll a little manually (so the DOM updates) and click the action again—custom themes sometimes rename the scroll container.
