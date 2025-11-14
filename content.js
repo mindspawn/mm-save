@@ -89,12 +89,7 @@ function extractPost(node) {
   const rawId = node.getAttribute("id") || dataset.postId || dataset.postid || dataset.messageId || dataset.messageid;
   const postId = normalizePostId(rawId);
 
-  const userId =
-    dataset.userid ||
-    dataset.userId ||
-    node.getAttribute("data-user-id") ||
-    node.querySelector("[data-testid='postProfilePicture']")?.getAttribute("data-user-id") ||
-    null;
+  const userId = resolveUserId(node, dataset);
 
   const timestamp = resolveTimestamp(node, dataset);
 
@@ -136,6 +131,56 @@ function normalizePostId(idValue) {
     return null;
   }
   return idValue.replace(/^post_/, "");
+}
+
+function resolveUserId(node, dataset) {
+  const directCandidates = [
+    dataset.userid,
+    dataset.userId,
+    dataset.userID,
+    node.getAttribute("data-user-id"),
+    node.getAttribute("data-userid")
+  ];
+
+  for (const value of directCandidates) {
+    if (value) {
+      return value;
+    }
+  }
+
+  const descendant = node.querySelector("[data-user-id], [data-userid]");
+  if (descendant?.getAttribute) {
+    return descendant.getAttribute("data-user-id") || descendant.getAttribute("data-userid");
+  }
+
+  const profilePicture = node.querySelector("[data-testid='postProfilePicture'] img, [data-testid='postProfilePicture']");
+  if (profilePicture?.getAttribute) {
+    const candidate = profilePicture.getAttribute("data-user-id") || profilePicture.getAttribute("data-userid");
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  const userPopover = node.querySelector(".user-popover, [data-testid='post_username'], [data-testid='post-profile-popover']");
+  if (userPopover?.getAttribute) {
+    const candidate = userPopover.getAttribute("data-user-id") || userPopover.getAttribute("data-userid");
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  let current = node.parentElement;
+  let hops = 0;
+  while (current && hops < 4) {
+    const candidate = current.getAttribute?.("data-user-id") || current.getAttribute?.("data-userid") || current.dataset?.userId;
+    if (candidate) {
+      return candidate;
+    }
+    current = current.parentElement;
+    hops += 1;
+  }
+
+  return null;
 }
 
 function resolveTimestamp(node, dataset) {
