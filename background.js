@@ -57,18 +57,14 @@ async function handleHistoryResult(payload) {
   }
 
   const suggestedName = buildFilename(payload.meta);
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
+  const jsonString = JSON.stringify(payload, null, 2);
+  const dataUrl = `data:application/json;charset=utf-8,${encodeURIComponent(jsonString)}`;
 
-  try {
-    await chrome.downloads.download({
-      url,
-      filename: suggestedName,
-      saveAs: true
-    });
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-  }
+  await chrome.downloads.download({
+    url: dataUrl,
+    filename: suggestedName,
+    saveAs: true
+  });
 }
 
 function buildFilename(meta = {}) {
