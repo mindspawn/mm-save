@@ -50,6 +50,7 @@ async function runCapture() {
     }
   }
 
+  await enrichPostsFromApi(posts);
   await backfillUserIds(posts);
 
   posts.sort((a, b) => {
@@ -299,6 +300,56 @@ async function backfillUserIds(posts) {
     if (!post.userId && post.username && userMap.has(post.username)) {
       post.userId = userMap.get(post.username);
     }
+  });
+}
+
+async function enrichPostsFromApi(posts) {
+  const targets = posts.filter((post) => post.postId && (!post.userId || !post.timestamp || !post.threadId || !post.message));
+  if (!targets.length) {
+    return;
+  }
+
+  const ids = Array.from(new Set(targets.map((post) => post.postId)));
+  const batchSize = 100;
+  const batchedIds = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    batchedIds.push(ids.slice(i, i + batchSize));
+  }
+
+  const postMap = new Map();
+
+  await Promise.all(
+    batchedIds.map(async (batch) => {
+      try {
+        const response = await fetch(`${window.location.origin}/api/v4/posts/ids`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(batch)
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        const fetchedPosts = data?.posts || {};
+        Object.entries(fetchedPosts).forEach(([id, value]) => {
+          postMap.set(id, value);
+        });
+      } catch (error) {
+        console.warn("Mattermost saver: failed to fetch post metadata", error);
+      }
+    })
+  );
+
+  targets.forEach((post) => {
+    const apiPost = postMap.get(post.postId);
+    if (!apiPost) {
+      return;
+    }
+    post.userId = post.userId || apiPost.user_id || null;
+    post.timestamp = post.timestamp || (apiPost.create_at ? new Date(apiPost.create_at).toISOString() : null);
+    post.threadId = post.threadId || apiPost.root_id || post.postId;
+    post.message = post.message || apiPost.message || "";
   });
 }
 
