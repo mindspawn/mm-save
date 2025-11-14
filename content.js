@@ -325,16 +325,27 @@ async function enrichPostsFromApi(posts) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify(batch)
+          body: JSON.stringify({ ids: batch })
         });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
-        const fetchedPosts = data?.posts || {};
-        Object.entries(fetchedPosts).forEach(([id, value]) => {
-          postMap.set(id, value);
-        });
+        if (Array.isArray(data)) {
+          data.forEach((post) => {
+            if (post?.id) {
+              postMap.set(post.id, post);
+            }
+          });
+        } else if (data?.posts && typeof data.posts === "object") {
+          Object.values(data.posts).forEach((post) => {
+            if (post?.id) {
+              postMap.set(post.id, post);
+            }
+          });
+        } else if (data?.id) {
+          postMap.set(data.id, data);
+        }
       } catch (error) {
         console.warn("Mattermost saver: failed to fetch post metadata", error);
       }
