@@ -14,7 +14,7 @@ This Chrome extension scrolls through the currently open Mattermost channel, for
 1. Open the Mattermost channel you want to archive and make sure it is focused
 2. Click the extension icon (or pin it first, if needed)
 3. Wait while it scrolls upward (the badge shows `⋯` while collecting; a green check indicates the download started)
-4. Choose where to save the generated JSON file when prompted
+4. Choose where to save the generated JSON file when prompted (a compressed `.txt` companion file is also saved automatically for LLM tooling)
 
 The resulting file includes:
 
@@ -24,8 +24,16 @@ The resulting file includes:
   - `userId` (as exposed in the DOM)
   - `username` (scraped from the UI or resolved via the authenticated API no matter how teammate names are displayed)
   - `message` (visible text)
-  - `threadId` (root ID so replies can be regrouped)
-  - `postId` (local identifier for convenience)
+- `threadId` (root ID so replies can be regrouped)
+- `postId` (local identifier for convenience)
+
+The companion text file (same basename + `-llm.txt`) lists each message on a single line:
+
+```
+2024-06-19_15:26:05 jon.doe T5: Message contents
+```
+
+`T#` is a simplified thread counter derived from the canonical thread IDs so LLMs can reconstruct conversations without parsing JSON.
 
 > **Tips:**
 > - The extension waits a few seconds for the channel list to appear; make sure the center pane is focused before clicking the action button.

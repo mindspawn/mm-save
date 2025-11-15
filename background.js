@@ -58,13 +58,24 @@ async function handleHistoryResult(payload) {
 
   const suggestedName = buildFilename(payload.meta);
   const jsonString = JSON.stringify(payload, null, 2);
-  const dataUrl = `data:application/json;charset=utf-8,${encodeURIComponent(jsonString)}`;
+  const jsonUrl = `data:application/json;charset=utf-8,${encodeURIComponent(jsonString)}`;
 
   await chrome.downloads.download({
-    url: dataUrl,
+    url: jsonUrl,
     filename: suggestedName,
     saveAs: true
   });
+
+  const textContent = buildThreadText(payload.posts || []);
+  if (textContent) {
+    const textUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(textContent)}`;
+    const textName = suggestedName.replace(/\.json$/i, "") + "-llm.txt";
+    await chrome.downloads.download({
+      url: textUrl,
+      filename: textName,
+      saveAs: false
+    });
+  }
 }
 
 function buildFilename(meta = {}) {
@@ -74,4 +85,55 @@ function buildFilename(meta = {}) {
     .replace(/[^a-z0-9-_]/g, "");
   const when = meta.capturedAt ? meta.capturedAt.replace(/[:.]/g, "-") : new Date().toISOString().replace(/[:.]/g, "-");
   return `mattermost-history-${channelSafe}-${when}.json`;
+}
+
+function buildThreadText(posts) {
+  if (!Array.isArray(posts) || !posts.length) {
+    return "";
+  }
+
+  const threadMap = new Map();
+  let counter = 0;
+
+  const lines = posts.map((post) => {
+    const timestamp = formatTimestamp(post.timestamp);
+    const username = (post.username || post.userId || "unknown").trim();
+    const canonicalThreadId = post.threadId || post.postId || `solo-${post.userId || ""}-${post.timestamp || ""}`;
+    let threadNumber = threadMap.get(canonicalThreadId);
+    if (!threadNumber) {
+      counter += 1;
+      threadNumber = counter;
+      threadMap.set(canonicalThreadId, threadNumber);
+    }
+    const simplifiedMessage = simplifyMessage(post.message);
+    return `${timestamp} ${username} T${threadNumber}: ${simplifiedMessage}`;
+  });
+
+  return lines.join("\n");
+}
+
+function formatTimestamp(value) {
+  if (!value) {
+    return "unknown_time";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const pad = (num) => String(num).padStart(2, "0");
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}-${month}-${day}_${hours}:${minutes}:${seconds}`;
+}
+
+function simplifyMessage(message) {
+  if (!message) {
+    return "";
+  }
+  return message.replace(/\s+/g, " ").trim();
 }
