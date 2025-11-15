@@ -275,9 +275,11 @@ async function backfillUserIds(posts) {
   await Promise.all(
     batched.map(async (batch) => {
       try {
+        const headers = { "Content-Type": "application/json" };
+        injectCsrf(headers);
         const response = await fetch(`${window.location.origin}/api/v4/users/usernames`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           credentials: "include",
           body: JSON.stringify(batch)
         });
@@ -321,9 +323,11 @@ async function enrichPostsFromApi(posts) {
   await Promise.all(
     batchedIds.map(async (batch) => {
       try {
+        const headers = { "Content-Type": "application/json" };
+        injectCsrf(headers);
         const response = await fetch(`${window.location.origin}/api/v4/posts/ids`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           credentials: "include",
           body: JSON.stringify(batch)
         });
@@ -450,4 +454,25 @@ function getChannelName() {
 
 function waitFor(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function injectCsrf(headers) {
+  const token = getCsrfToken();
+  if (token) {
+    headers["X-CSRF-Token"] = token;
+  }
+}
+
+function getCsrfToken() {
+  const cookie = document.cookie || "";
+  const match = cookie.match(/(?:^|;\s*)(MMCSRF|XSRF-TOKEN)=([^;]+)/i);
+  if (match) {
+    try {
+      return decodeURIComponent(match[2]);
+    } catch {
+      return match[2];
+    }
+  }
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta?.getAttribute("content") || null;
 }
