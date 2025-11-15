@@ -325,7 +325,7 @@ async function enrichPostsFromApi(posts) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ ids: batch })
+          body: JSON.stringify(batch)
         });
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
