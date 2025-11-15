@@ -13,12 +13,13 @@ This Chrome extension scrolls through the currently open Mattermost channel, for
 
 1. Open the Mattermost channel you want to archive and make sure it is focused
 2. Click the extension icon (or pin it first, if needed)
-3. Wait while it scrolls upward (the badge shows `⋯` while collecting; a green check indicates the download started)
-4. Choose where to save the generated JSON file when prompted (a compressed `.txt` companion file is also saved automatically for LLM tooling)
+3. Enter how many days of history to keep (leave blank for all available history) when the prompt appears
+4. Wait while it scrolls upward (the badge shows `⋯` while collecting; a green check indicates the download started)
+5. Choose where to save the generated JSON file when prompted (a compressed `.txt` companion file is also saved automatically for LLM tooling)
 
 The resulting file includes:
 
-- `meta` with channel name, capture time, total posts, and duration
+- `meta` with channel name, capture time, requested day window (if any), cutoff timestamp, total collected posts vs. exported posts, and duration
 - `posts`, sorted oldest → newest, each containing:
   - `timestamp` (ISO)
   - `userId` (as exposed in the DOM)
