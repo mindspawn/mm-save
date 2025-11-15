@@ -27,6 +27,7 @@
 })();
 
 async function runCapture(options) {
+  const filter = normalizeHistoryFilter(options?.days);
   const scrollable = await waitForScrollableContainer();
 
   const seen = new Set();
@@ -53,6 +54,10 @@ async function runCapture(options) {
       stableIterations = 0;
       lastCount = posts.length;
     }
+
+    if (filter?.cutoff && hasReachedHistoryCutoff(posts, filter.cutoff)) {
+      break;
+    }
   }
 
   await enrichPostsFromApi(posts);
@@ -65,7 +70,6 @@ async function runCapture(options) {
     return timeA - timeB;
   });
 
-  const filter = normalizeHistoryFilter(options?.days);
   const exportedPosts = applyHistoryFilter(posts, filter);
 
   return {
@@ -461,15 +465,24 @@ function applyHistoryFilter(posts, filter) {
     return posts.slice();
   }
   return posts.filter((post) => {
-    if (!post.timestamp) {
-      return false;
-    }
-    const value = Date.parse(post.timestamp);
-    if (Number.isNaN(value)) {
-      return false;
-    }
-    return value >= filter.cutoff;
+    const value = parseTimestampMs(post.timestamp);
+    return typeof value === "number" && value >= filter.cutoff;
   });
+}
+
+function hasReachedHistoryCutoff(posts, cutoffMs) {
+  return posts.some((post) => {
+    const value = parseTimestampMs(post.timestamp);
+    return typeof value === "number" && value <= cutoffMs;
+  });
+}
+
+function parseTimestampMs(timestamp) {
+  if (!timestamp) {
+    return null;
+  }
+  const value = Date.parse(timestamp);
+  return Number.isNaN(value) ? null : value;
 }
 
 function findScrollableContainer() {
