@@ -1,11 +1,11 @@
+import { ALLOWED_HOSTS } from "./allowed-hosts.js";
+
 const ACTION_BADGE_TEXT = {
   idle: "",
   running: "⋯",
   done: "✓",
   error: "!"
 };
-
-const ALLOWED_HOSTS = ["mchat.foo.com"];
 
 chrome.action.setBadgeBackgroundColor({ color: "#2f3d4a" }).catch(() => {});
 
