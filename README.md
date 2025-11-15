@@ -22,7 +22,7 @@ The resulting file includes:
 - `posts`, sorted oldest → newest, each containing:
   - `timestamp` (ISO)
   - `userId` (as exposed in the DOM)
-  - `username` (and used to backfill `userId` via the authenticated API if needed)
+  - `username` (scraped from the UI or resolved via the authenticated API no matter how teammate names are displayed)
   - `message` (visible text)
   - `threadId` (root ID so replies can be regrouped)
   - `postId` (local identifier for convenience)
@@ -30,4 +30,4 @@ The resulting file includes:
 > **Tips:**
 > - The extension waits a few seconds for the channel list to appear; make sure the center pane is focused before clicking the action button.
 > - If it still reports it cannot find the message list, scroll a little manually (so the DOM updates) and click the action again—custom themes sometimes rename the scroll container.
-> - The capture uses your authenticated Mattermost session to enrich missing metadata via the `/api/v4/posts/ids` and `/api/v4/users/usernames` endpoints, so make sure you remain logged in while it runs.
+> - The capture uses your authenticated Mattermost session to enrich missing metadata via the `/api/v4/posts/ids`, `/api/v4/users/usernames`, and `/api/v4/users/ids` endpoints, so make sure you remain logged in while it runs.

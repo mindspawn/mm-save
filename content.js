@@ -52,6 +52,7 @@ async function runCapture() {
 
   await enrichPostsFromApi(posts);
   await backfillUserIds(posts);
+  await fillUsernamesFromIds(posts);
 
   posts.sort((a, b) => {
     const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
@@ -365,6 +366,55 @@ async function enrichPostsFromApi(posts) {
     post.timestamp = post.timestamp || (apiPost.create_at ? new Date(apiPost.create_at).toISOString() : null);
     post.threadId = post.threadId || apiPost.root_id || post.postId;
     post.message = post.message || apiPost.message || "";
+  });
+}
+
+async function fillUsernamesFromIds(posts) {
+  const targets = posts.filter((post) => post.userId && !post.username);
+  if (!targets.length) {
+    return;
+  }
+
+  const ids = Array.from(new Set(targets.map((post) => post.userId)));
+  const batchSize = 50;
+  const batchedIds = [];
+  for (let i = 0; i < ids.length; i += batchSize) {
+    batchedIds.push(ids.slice(i, i + batchSize));
+  }
+
+  const userMap = new Map();
+  await Promise.all(
+    batchedIds.map(async (batch) => {
+      try {
+        const headers = { "Content-Type": "application/json" };
+        injectCsrf(headers);
+        const response = await fetch(`${window.location.origin}/api/v4/users/ids`, {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify(batch)
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const users = await response.json();
+        if (Array.isArray(users)) {
+          users.forEach((user) => {
+            if (user?.id) {
+              userMap.set(user.id, user.username || null);
+            }
+          });
+        }
+      } catch (error) {
+        console.warn("Mattermost saver: failed to resolve usernames by ID", error);
+      }
+    })
+  );
+
+  targets.forEach((post) => {
+    if (!post.username && post.userId && userMap.has(post.userId)) {
+      post.username = userMap.get(post.userId);
+    }
   });
 }
 
