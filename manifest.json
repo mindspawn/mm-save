@@ -3,6 +3,7 @@
   "name": "Mattermost Full History Saver",
   "description": "Scrolls through a Mattermost channel and saves every post's timestamp, user ID, message, and thread ID.",
   "version": "1.0.0",
+  "author": "Sumanth J.V.",
   "action": {
     "default_title": "Save Mattermost history"
   },

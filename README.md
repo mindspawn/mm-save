@@ -1,5 +1,7 @@
 # Mattermost Full History Saver
 
+Author: Sumanth J.V.
+
 This Chrome extension scrolls through the currently open Mattermost channel, forces Mattermost to load every available chunk of history, and downloads a JSON file containing each post's timestamp, user ID, message text, and thread ID.
 
 ## Install
@@ -35,6 +37,17 @@ The companion text file (same basename + `-llm.txt`) lists each message on a sin
 ```
 
 `T#` is a simplified thread counter derived from the canonical thread IDs so LLMs can reconstruct conversations without parsing JSON.
+
+## How It Works
+
+1. When you click the action button, the background service worker verifies the tab host is allowed and injects the content script.
+2. The content script prompts for a day-range filter, finds the main post list, then repeatedly scrolls upward until it either reaches the requested cutoff timestamp or Mattermost reports no more history.
+3. Each DOM post is parsed for IDs, timestamps, usernames, messages, and thread metadata.
+4. Any missing data is resolved through authenticated Mattermost API calls using your existing browser session:
+   - `POST /api/v4/posts/ids` to backfill post metadata (`user_id`, `create_at`, `root_id`, `message`).
+   - `POST /api/v4/users/usernames` to map usernames → user IDs.
+   - `POST /api/v4/users/ids` to map user IDs → usernames (covers all teammate display settings).
+5. The background worker receives the structured payload, saves the canonical JSON file, and also generates a compact text file with simplified thread numbering.
 
 > **Tips:**
 > - The extension waits a few seconds for the channel list to appear; make sure the center pane is focused before clicking the action button.
