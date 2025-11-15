@@ -39,3 +39,4 @@ The companion text file (same basename + `-llm.txt`) lists each message on a sin
 > - The extension waits a few seconds for the channel list to appear; make sure the center pane is focused before clicking the action button.
 > - If it still reports it cannot find the message list, scroll a little manually (so the DOM updates) and click the action again—custom themes sometimes rename the scroll container.
 > - The capture uses your authenticated Mattermost session to enrich missing metadata via the `/api/v4/posts/ids`, `/api/v4/users/usernames`, and `/api/v4/users/ids` endpoints, so make sure you remain logged in while it runs.
+> - By default the extension only runs on `https://mchat.foo.com/`; edit `ALLOWED_HOSTS` in `background.js` (and update `host_permissions` in `manifest.json` accordingly) if you need to support additional Mattermost domains.

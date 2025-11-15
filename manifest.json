@@ -12,7 +12,7 @@
     "downloads"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://mchat.foo.com/*"
   ],
   "background": {
     "service_worker": "background.js",

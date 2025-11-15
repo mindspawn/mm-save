@@ -5,12 +5,21 @@ const ACTION_BADGE_TEXT = {
   error: "!"
 };
 
+const ALLOWED_HOSTS = ["mchat.foo.com"];
+
 chrome.action.setBadgeBackgroundColor({ color: "#2f3d4a" }).catch(() => {});
 
 chrome.action.setBadgeText({ text: ACTION_BADGE_TEXT.idle }).catch(() => {});
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) {
+    return;
+  }
+
+  if (!isAllowedTab(tab)) {
+    chrome.action.setBadgeText({ text: ACTION_BADGE_TEXT.error });
+    setTimeout(() => chrome.action.setBadgeText({ text: ACTION_BADGE_TEXT.idle }), 4000);
+    console.warn("Mattermost saver: blocked on unsupported host", tab.url);
     return;
   }
 
@@ -85,6 +94,18 @@ function buildFilename(meta = {}) {
     .replace(/[^a-z0-9-_]/g, "");
   const when = meta.capturedAt ? meta.capturedAt.replace(/[:.]/g, "-") : new Date().toISOString().replace(/[:.]/g, "-");
   return `mattermost-history-${channelSafe}-${when}.json`;
+}
+
+function isAllowedTab(tab) {
+  try {
+    const url = tab?.url ? new URL(tab.url) : null;
+    if (!url?.hostname) {
+      return false;
+    }
+    return ALLOWED_HOSTS.some((host) => host.toLowerCase() === url.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 function buildThreadText(posts) {
