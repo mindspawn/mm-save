@@ -81,7 +81,7 @@ async function handleHistoryResult(payload) {
   await chrome.downloads.download({
     url: jsonUrl,
     filename: suggestedName,
-    saveAs: true
+    saveAs: false
   });
 
   const textContent = buildThreadText(payload.posts || []);
