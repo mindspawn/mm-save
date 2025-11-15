@@ -30,7 +30,16 @@ chrome.action.onClicked.addListener(async (tab) => {
       files: ["content.js"]
     });
 
-    const response = await chrome.tabs.sendMessage(tab.id, { type: "MM_SAVE_START" });
+    const promptResponse = await chrome.tabs.sendMessage(tab.id, { type: "MM_SAVE_PROMPT" });
+    if (!promptResponse?.ok) {
+      chrome.action.setBadgeText({ text: ACTION_BADGE_TEXT.idle });
+      return;
+    }
+
+    const response = await chrome.tabs.sendMessage(tab.id, {
+      type: "MM_SAVE_START",
+      options: { days: promptResponse.days }
+    });
     if (!response?.ok) {
       throw new Error(response?.error || "Mattermost saver was unable to start.");
     }

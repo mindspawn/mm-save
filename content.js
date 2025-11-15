@@ -6,7 +6,7 @@
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message?.type === "MM_SAVE_START") {
-      runCapture()
+      runCapture(message?.options || {})
         .then((payload) => {
           chrome.runtime.sendMessage({ type: "MM_SAVE_RESULT", payload });
           sendResponse({ ok: true });
@@ -17,11 +17,16 @@
         });
       return true;
     }
+    if (message?.type === "MM_SAVE_PROMPT") {
+      const result = promptForHistoryRange();
+      sendResponse(result);
+      return false;
+    }
     return false;
   });
 })();
 
-async function runCapture() {
+async function runCapture(options) {
   const scrollable = await waitForScrollableContainer();
 
   const seen = new Set();
@@ -60,14 +65,20 @@ async function runCapture() {
     return timeA - timeB;
   });
 
+  const filter = normalizeHistoryFilter(options?.days);
+  const exportedPosts = applyHistoryFilter(posts, filter);
+
   return {
     meta: {
       channel: getChannelName(),
       capturedAt: new Date().toISOString(),
-      totalPosts: posts.length,
+      requestedDays: filter?.days ?? null,
+      cutoffTimestamp: filter?.cutoff ? new Date(filter.cutoff).toISOString() : null,
+      totalCaptured: posts.length,
+      totalPosts: exportedPosts.length,
       durationMs: Math.round(performance.now() - start)
     },
-    posts
+    posts: exportedPosts
   };
 }
 
@@ -415,6 +426,49 @@ async function fillUsernamesFromIds(posts) {
     if (!post.username && post.userId && userMap.has(post.userId)) {
       post.username = userMap.get(post.userId);
     }
+  });
+}
+
+function promptForHistoryRange() {
+  const message = "How many days of Mattermost history should be saved from now? Leave blank for all history.";
+  while (true) {
+    const input = window.prompt(message, "");
+    if (input === null) {
+      return { ok: false, cancelled: true };
+    }
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return { ok: true, days: null };
+    }
+    const value = Number(trimmed);
+    if (!Number.isNaN(value) && value > 0) {
+      return { ok: true, days: value };
+    }
+    window.alert("Please enter a positive number of days or leave the field blank for all available history.");
+  }
+}
+
+function normalizeHistoryFilter(daysValue) {
+  if (typeof daysValue !== "number" || Number.isNaN(daysValue) || !Number.isFinite(daysValue) || daysValue <= 0) {
+    return null;
+  }
+  const cutoff = Date.now() - daysValue * 24 * 60 * 60 * 1000;
+  return { days: daysValue, cutoff };
+}
+
+function applyHistoryFilter(posts, filter) {
+  if (!filter) {
+    return posts.slice();
+  }
+  return posts.filter((post) => {
+    if (!post.timestamp) {
+      return false;
+    }
+    const value = Date.parse(post.timestamp);
+    if (Number.isNaN(value)) {
+      return false;
+    }
+    return value >= filter.cutoff;
   });
 }
 
